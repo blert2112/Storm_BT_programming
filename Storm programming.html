@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html>
+<body>
+
+<h1>How to configure a HC-05 Bluetooth module and use it as a serial link to program your Coralux Storm(X)</h1>
+
+<h3>ADAPTED FROM:</h3>
+<a href=http://makezine.com/projects/diy-arduino-bluetooth-programming-shield/>http://makezine.com/projects/diy-arduino-bluetooth-programming-shield/</a>
+<p>A huge shout out to Joshua Newell, the author of the above linked page.</p>
+<br />
+
+<h3>DISCLAIMER:</h3>
+<p>
+This HowTo requires soldering! If you have no faith in your soldering skills then do not attempt this. I take no responsibility if you fry your components.
+</p>
+<br />
+
+<h3>Materials:</h3>
+<ul>
+	<li>Coralux Storm (or StormX)</li>
+	<li>Arduino Mega2560/Uno (optional for configuration method 3, todo)</li>
+	<li><a href=http://www.ebay.com/itm/30ft-Wireless-Bluetooth-RF-Transceiver-Module-serial-RS232-TTL-HC-05-arduino-/310540196588>HC-05 Bluetooth module on a "JY-MCU" 6-pin adapter board</a></li>
+	<li>2.2 kOhm resistor x1</li>
+	<li>10 kOhm resistor x1</li>
+	<li>15 kOhm resistor x1 (or 10 kOhm + ~5 kOhm resistors, x1 each)</li>
+	<li>100 nF capacitor</li>
+	<li>jumper wires</li>
+	<li>soldering iron</li>
+</ul>
+<p>I list the Arduino Mega2560 and Uno in the materials list. There is really nothing stopping you from using any other Arduino board to do the setup of the HC-05 module. For boards that have only one hardware UART you need to use the steps outlined for the Uno. For boards that have more than one hardware UART you will use the steps outlined for the Mega2560. Of course, you may need to change which pins you use depending on the board.</p>
+<p>I linked a specific HC-05 Bluetooth module in the material list. There are other HC-05 modules out there and they have different pinouts. You could even use a HC-06/HC-10/HC-xx but the 'AT' commands will likely be different. If you have one of those you can still make this work but you will need to research which pins and/or 'AT' commands to use.</p>
+<br />
+
+<h3>Step 1: Install the latest Arduino programming software.</h3>
+<a href=https://www.arduino.cc/en/Main/Software>https://www.arduino.cc/en/Main/Software</a>
+<br /><br />
+
+<h3>Step 2: Breadboard the Bluetooth setup circuit.</h3>
+<p>We need to configure the HC-05 so it can act as a programming interface. To do this we need to build the setup circuit that allows us to put the module into command mode. Here are three methods depending on which microcontroller you are using.</p>
+<p>Note that some HC-05 modules have a '3.3v' pin, the one I have does. You can connect the 'key' pin directly to it or to the '3.3v' pin on the microcontroller, if available. Do not, repeat DO NOT, connect the 3.3v pin on the module to the 3.3v pin on the Arduino AND the 5v pin on the module to the 5v pin on the Arduino at the same time. Not 100% sure what will happen but it can't be good to hook two power supply pins together.</p>
+<p>Regarding the 'key' pin: Applying 3.3 volts to this pin puts the HC-05 into command mode. Command mode sets the baud rate to 38400 and allows us to send the 'AT' commands needed to properly configure the HC-05 for our needs (step 4).</p>
+<p>Be aware that the only method I have actually tested thus far is method 1. This is because I don't have an Uno and I have not the time right now to figure out which pins to use to do this whole deal with only a Storm(X) on hand (soon).</p>
+<p>You may notice that I am using Serial2 (pins 16 and 17) on the Mega2560 instead of Serial1 (pins 18 ans 19). This is because for some reason Serial1 does not work properly, for me at least. Try it if you like... Get it working on Serial2, then move the pins and change the sketch (just replace all '2's with '1's). Bet ya it won't work. </p>
+<ul>
+<li><h4>Method 1: Using a Mega2560 (confirmed works).</h4>
+<a href="hc-05_to-mega.png">
+  <img src="hc-05_to-mega.png" alt="Click to enlarge" style="width:465px;height:219px;border:0;">
+</a></li>
+
+<li><h4>Method 2: Using an Uno</h4>
+<a href="hc-05_to-uno.png">
+  <img src="hc-05_to-uno.png" alt="Click to enlarge" style="width:465px;height:219px;border:0;">
+</a></li>
+
+<li><h4>Method 3: Using a Storm(X). (TO DO)</h4>
+<p>As soon as I have time I will work this out but it will require a FTDI cable to upload the setup sketch in the next step.</p></li>
+</ul>
+<br />
+
+<h3>Step 3: Upload setup sketch.</h3>
+<p>The sketch you use depends on the microcontroller you are using to set up the HC-05. Find your microcontroller below and upload the appropriate sketch in the usual way.</p>
+
+<ul>
+<li><h4>Mega2560:</h4></li>
+<code>
+//////////////////////////////////////////////////////////////////////<br />
+/* Serial Loop */<br />
+char inChar;<br />
+void setup() {<br />
+&emsp;&ensp;Serial.begin(9600);<br />
+&emsp;&ensp;Serial.println("AT");<br />
+&emsp;&ensp;Serial2.begin(38400);<br />
+&emsp;&ensp;Serial2.println("AT");<br />
+}<br />
+void loop() {<br />
+&emsp;&ensp;while ( Serial2.available() ) {<br />
+&emsp;&ensp;&emsp;&ensp;inChar = Serial2.read();<br />
+&emsp;&ensp;&emsp;&ensp;Serial.print(inChar);<br />
+&emsp;&ensp;}<br />
+&emsp;&ensp;while ( Serial.available() ) {<br />
+&emsp;&ensp;&emsp;&ensp;inChar = Serial.read();<br />
+&emsp;&ensp;&emsp;&ensp;Serial.print(inChar);			//echo<br />
+&emsp;&ensp;&emsp;&ensp;Serial2.print(inChar);<br />
+&emsp;&ensp;}<br />
+}<br />
+//////////////////////////////////////////////////////////////////////<br />
+</code>
+<li><h4>Uno:</h4></li>
+<code>
+//////////////////////////////////////////////////////////////////////<br />
+/* Serial Loop */<br />
+#include &lt;SoftwareSerial.h&gt;<br />
+#define rxPin 8<br />
+#define txPin 7<br />
+SoftwareSerial btSerial(rxPin, txPin);	//RX, TX<br />
+char inChar;<br />
+void setup() {<br />
+&emsp;&ensp;Serial.begin(9600);<br />
+&emsp;&ensp;Serial.println("AT");<br />
+&emsp;&ensp;btSerial.begin(38400);<br />
+&emsp;&ensp;btSerial.println("AT");<br />
+}<br />
+void loop() {<br />
+&emsp;&ensp;while ( btSerial.available() ) {<br />
+&emsp;&ensp;&emsp;&ensp;inChar = btSerial.read();<br />
+&emsp;&ensp;&emsp;&ensp;Serial.print(inChar);<br />
+&emsp;&ensp;}<br />
+&emsp;&ensp;while ( Serial.available() ) {<br />
+&emsp;&ensp;&emsp;&ensp;inChar = Serial.read();<br />
+&emsp;&ensp;&emsp;&ensp;Serial.print(inChar);			//echo<br />
+&emsp;&ensp;&emsp;&ensp;btSerial.print(inChar);<br />
+&emsp;&ensp;}<br />
+}<br />
+//////////////////////////////////////////////////////////////////////<br />
+</code>
+<li><h4>Storm(X):</h4></li>
+<p>Not done yet. Should be the same as for the Uno but possibly with different pins for RX/TX. You will also need a FTDI cable to upload the sketch and send the 'AT' commands in the next step.</p>
+</ul>
+<br />
+
+<h3>Step 4: Send the 'AT' commands to configure the HC-05 module.</h3>
+<p>Once the setup sketch is uploaded you are ready to configure the Bluetooth device so it can act as a programming interface.</p>
+<p>From the Arduino software, open the serial monitor (Tools->Serial Monitor, or Ctrl-Shift-M, or hit the magnifying glass icon in the upper righthand corner).</p>
+<p>In the bottom righthand corner of the serial monitor there are two dropdown boxes. In the first one choose "Both NL & CR". In the second choose "9600".</p>
+<a href="serial_mon.png">
+  <img src="serial_mon.png" alt="Click to enlarge" style="width:196px;height:133px;border:0;">
+</a>
+<h4>Enter the following commands into the serial monitor in order:</h4>
+<ul>
+<li>AT+ORGL</li>
+<li>AT+ROLE=0</li>
+<li>AT+POLAR=1,0</li>
+<li>AT+UART=115200,0,0</li>
+<li>AT+INIT</li>
+</ul>
+<p>What these commands do, in order: reset to factory settings, set to slave role, set pin 32 low, set baud rate to programming rate, initialize.</p>
+<p>You should receive an "OK" reponse after each command is entered.</p>
+<br />
+
+<h3>Step 5: Set up the Bluetooth device in your OS.</h3>
+<p>Disconnect the '3.3v' pin from the 'key' pin and cycle power to the HC-05. It is now running at a buad rate of 115200 and will be in pairing mode.</p>
+<p>Add, and pair, the module to your PC. Make sure to use the 'pairing code' option if available. When it asks for the pairing code enter "1234".</p>
+<p>This next bit is extremely important but it is left out of every 'howto' I have seen concerning this. Once the module is paired to your PC the OS will create TWO new COM ports. You need to configure these ports to communicate at the proper baud rate.</p>
+<p>In Windows, open the "Device Manager" and expand "Ports(COM&LPT)". They will probably be named something like "Standard Serial over Bluetooth link (COMXX)". Double-click each one and change the "Bits per second" (in the "Port Settings" tab) to 115200.</p>
+<p>If you are using Linux you should already know where to change these settings for your distro.</p>
+<br />
+
+<h3>Step 6: Time to heat up that soldering iron.</h3>
+<p>We are now done with the setup circuit. Disassemble it.</p>
+<p>Solder a jumper wire directly to the HC-05's pin 32.</p>
+<a href="hc-05_pin32.png">
+  <img src="hc-05_pin32.png" alt="Click to enlarge" style="width:112px;height:110;border:0;">
+</a>
+<p>Find the reset pin/pad on your Storm(X). On my Storm there is access to this pad from the bottom of the board. It sits in a group of six pads labeled "ISP". The reset pad itself is labeled "RST". Solder a jumper wire to this pad.</p>
+<a href="storm_bottom.jpg">
+  <img src="storm_bottom.jpg" alt="Click to enlarge" style="width:112px;height:110;border:0;">
+</a>
+<a href="storm_reset.jpg">
+  <img src="storm_reset.jpg" alt="Click to enlarge" style="width:112px;height:110;border:0;">
+</a>
+<p>Solder pins to the FTDI header of your Storm(X).</p>
+</p>
+<a href="storm_ftdi.jpg">
+  <img src="storm_ftdi.jpg" alt="Click to enlarge" style="width:112px;height:110;border:0;">
+</a>
+<br />
+
+<h3>Step 7: Build the programmer circuit.</h3>
+<p>Two things of note about the following image: First, you will see I used a basic FTDI board to represent the FTDI header on the Storm(X). The header is the same, just follow the connections. Second, if you are like me, you have many parts lying around but may not have a 15kOhm resistor. Not to fear, you can simply wire a 10kOhm and a 4.7kOhm (both common resistors) in series to get ~15kOhm.</p>
+<a href="hc-05_to-storm.png">
+  <img src="hc-05_to-storm.png" alt="Click to enlarge" style="width:387px;height:131;border:0;">
+</a>
+<br />
+
+<h3>Step 8: Program your Storm(X) with your new Bluetooth interface.</h3>
+<p>With the programmer circuit connected, plug your Storm(X) into power.</p>
+<p>If the Arduino software is running then close and restart it.</p>
+<ul>In the Arduino software:
+<li>1. Tools->Board ... select "Arduino/Genuino Uno".</li>
+<li>2. Tools->Port ... select the COM port of your BlueTooth module. Use the one with the lower number (ex: if COM6 and COM7, use COM6).</li>
+</ul>
+<p>Now just upload as normal.</p>
+<ul>If it fails then:</p>
+<li>3.	Tools->Programmer ... select "Atmel STK500 development board".</li>
+</ul>
+<p>Try again.</p>
+<p>Hope you had fun!</p>
+<p>-Chris</p>
+
+</body>
+</html>
